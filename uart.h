@@ -19,9 +19,13 @@
 #define U0THR_ADR 0x4000C000;
 #define U0RBR_ADR 0x4000C000;
 
+extern unsigned int* U0LSR_ptr;
+extern unsigned int* U0THR_ptr;
+
 void UART0_Init(void);
 
-void send_char(char c);
+int send_char(char c);
+void send_string(char* msg, int length);
 
 char read_char(void);
 

@@ -48,10 +48,26 @@ void UART0_Init(void) {
     *U0LCR_ptr &= ~(1 << 7);
 }
 
-void send_char(char c) {
-    // wait until Transmitter Holding Register is empty
-    while (~(*U0LSR_ptr & (1<<5))) {} // wait until THRE bit == 1 (bit 5 of U0LSR)
-    *U0THR_ptr = c;
+ // return status
+ int send_char(char c) {
+     // wait until Transmitter Holding Register is empty
+     if (*U0LSR_ptr & (1<<5)) {// THRE bit == 1 (bit 5 of U0LSR)
+				*U0THR_ptr = c; // then send 'T' (or ascii code for �T�)
+        return 0;
+     } else {
+         return 1;
+     }
+ }
+
+void send_string(char* msg, int length){
+    int i = 0;
+    int status;
+    while (i < length) {
+        do {
+            status = send_char(msg[i]);
+        } while (status);
+        i++;
+    }
 }
 
 char read_char(void) {
