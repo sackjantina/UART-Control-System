@@ -1,22 +1,24 @@
 #include "uart.h"
 
 // Define pointers to registers for UART0
-unsigned int* PCONP_ptr = PCONP_ADR;
-unsigned int* PCLKSEL0_ptr = PCLKSEL0_ADR;
-unsigned int* PINSEL0_ptr = PINSEL0_ADR;
-unsigned int* U0LCR_ptr = U0LCR_ADR;
-unsigned int* U0DLL_ptr = U0DLL_ADR;
-unsigned int* U0DLM_ptr = U0DLM_ADR;
-unsigned int* U0FDR_ptr = U0FDR_ADR;
-unsigned int* U0FCR_ptr = U0FCR_ADR;
-unsigned int* U0LSR_ptr = U0LSR_ADR;
-unsigned int* U0THR_ptr = U0THR_ADR;
-unsigned int* U0RBR_ptr = U0RBR_ADR;
+unsigned int *PCONP_ptr = PCONP_ADR;
+unsigned int *PCLKSEL0_ptr = PCLKSEL0_ADR;
+unsigned int *PINSEL0_ptr = PINSEL0_ADR;
+unsigned int *U0LCR_ptr = U0LCR_ADR;
+unsigned int *U0DLL_ptr = U0DLL_ADR;
+unsigned int *U0DLM_ptr = U0DLM_ADR;
+unsigned int *U0FDR_ptr = U0FDR_ADR;
+unsigned int *U0FCR_ptr = U0FCR_ADR;
+unsigned int *U0LSR_ptr = U0LSR_ADR;
+unsigned int *U0THR_ptr = U0THR_ADR;
+unsigned int *U0RBR_ptr = U0RBR_ADR;
+unsigned int *FIO1PIN_ptr = 0x2009C034;
 
 /*----------------------------------------------------------------------------
 UART0_Init: setup for UART0 (9600 bps, 8 data bits, 1 stop bit, no parity, no interrupt
 *---------------------------------------------------------------------------*/
-void UART0_Init(void) {
+void UART0_Init(void)
+{
     //Enable UART0 power: PCON(3) = ‘1’
     *PCONP_ptr |= (1 << 3);
 
@@ -48,30 +50,106 @@ void UART0_Init(void) {
     *U0LCR_ptr &= ~(1 << 7);
 }
 
- // return status
- int send_char(char c) {
-     // wait until Transmitter Holding Register is empty
-     if (*U0LSR_ptr & (1<<5)) {// THRE bit == 1 (bit 5 of U0LSR)
-				*U0THR_ptr = c; // then send 'T' (or ascii code for �T�)
+// return status
+int send_char(char c)
+{
+    // wait until Transmitter Holding Register is empty
+    if (*U0LSR_ptr & (1 << 5))
+    {                   // THRE bit == 1 (bit 5 of U0LSR)
+        *U0THR_ptr = c; // then send 'T' (or ascii code for �T�)
         return 0;
-     } else {
-         return 1;
-     }
- }
+    }
+    else
+    {
+        return 1;
+    }
+}
 
-void send_string(char* msg, int length){
+void send_string(char *msg, int length)
+{
     int i = 0;
     int status;
-    while (i < length) {
-        do {
+    while (i < length)
+    {
+        do
+        {
             status = send_char(msg[i]);
         } while (status);
         i++;
     }
 }
 
-char read_char(void) {
+char read_char(void)
+{
     // wait until Receiver Data Ready Register is empty
-    while (~(*U0LSR_ptr & 1)) {} // wait until RDR bit == 1 (UART FIFO is not empty)
-    return (char) *U0RBR_ptr;
+    if (*U0LSR_ptr & 1)
+    { // check if  RDR bit == 1 (UART FIFO is not empty)
+        return (char)*U0RBR_ptr;
+    }
+    else
+    {
+        return 0x00;
+    }
+}
+
+void joystick_init(void)
+{
+    unsigned int *FIO1DIR_ptr = 0x2009C020;
+    *FIO1DIR_ptr &= (0x0000 << 23);
+}
+
+int get_joystick(void)
+{
+    int fio1pin = *FIO1PIN_ptr;
+    if ((fio1pin & (1 << 23)) == 0)
+    {
+        return 0;
+    }
+    else if ((fio1pin & (1 << 24)) == 0)
+    {
+        return 1;
+    }
+    else if ((fio1pin & (1 << 25)) == 0)
+    {
+        return 2;
+    }
+    else if ((fio1pin & (1 << 26)) == 0)
+    {
+        return 3;
+    }
+    else
+    {
+        return -1;
+    }
+}
+
+int* message_to_control(char *msg)
+{
+    int m_dir[2];
+    if (msg[0] == 'l')
+    {
+        m_dir[0] = (int)msg[1] * -1;
+        m_dir[1] = 0;
+    }
+    else if (msg[0] == 'r')
+    {
+        m_dir[0] = (int)msg[1];
+        m_dir[1] = 0;
+    }
+    else if (msg[0] == 'u')
+    {
+        m_dir[0] = 0;
+        m_dir[1] = (int)msg[1];
+    }
+    else if (msg[0] == 'd')
+    {
+        m_dir[0] = 0;
+        m_dir[1] = (int)msg[1] * -1;
+    }
+    else
+    {
+        m_dir[0] = 0;
+        m_dir[1] = 0;
+    }
+    return m_dir;
 }

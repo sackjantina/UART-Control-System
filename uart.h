@@ -29,4 +29,9 @@ void send_string(char* msg, int length);
 
 char read_char(void);
 
+void joystick_init(void);
+int get_joystick(void);
+
+int* message_to_control(char *msg);
+
 #endif
